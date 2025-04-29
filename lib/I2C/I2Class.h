@@ -16,8 +16,8 @@ private:
 
 public:
     bool I2CWriteByte(uint8_t chipadr, uint8_t regadr, uint8_t data);
-    uint8_t I2CReadByte(uint8_t chipadr, uint8_t regadr, uint8_t* temp, uint16_t timeout);
-    uint8_t I2CReadBytes(uint8_t chipadr, uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout);
+    uint8_t I2CReadByte(uint8_t chipadr, uint8_t regadr, uint8_t* temp, uint16_t timeout = TIMEOUT_I2C);
+    uint8_t I2CReadBytes(uint8_t chipadr, uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout = TIMEOUT_I2C);
 
     I2Class();
     I2Class(uint8_t sda, uint8_t scl);
