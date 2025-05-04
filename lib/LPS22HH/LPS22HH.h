@@ -70,6 +70,10 @@ class LPS22HH {
     LPS22HH(I2Class* _i2c);
 
     uint8_t lpsReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout = TIMEOUT_I2C);
+    bool lpsWriteByte(uint8_t regadr, uint8_t data);
+    void setCTRL_REG1(LPS_OUTPUT_DATA_RATE odrRate, LPS_EN_LPFP lpfp, LPS_BDU bdu);
+    void setCTRL_REG2(LPS_LOW_NOISE lpsLowNoise);
+    void resetLPS();
     float getPressure(); 
     float getTemperature();
     bool readWhoAmI();
