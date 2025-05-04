@@ -1,7 +1,7 @@
 #ifndef LPS22HH_H
 #define LPS22HH_H
 
-#include "..\..\I2C(N)\I2Class.h"
+#include "I2Class.h"
 
 #define CHIP_ADDRESS 0x5D
 
@@ -34,8 +34,8 @@
 #define FIFO_DATA_OUT_TEMP_L 0x7B
 #define FIFO_DATA_OUT_TEMP_H 0x7C
 
-#define PRES_SENS 4096
-#define TEMP_SENS 100
+#define PRES_SENS 4096.0
+#define TEMP_SENS 100.0
 
 typedef enum LPS_OUTPUT_DATA_RATE : uint8_t {
     LPS_OUTPUTDATARATE_ONESHOT = 0b000,
@@ -67,12 +67,12 @@ class LPS22HH {
     private:
         I2Class* i2c;
     public:
-    LPS22HH(I2Class* _i2c) {
-            i2c = _i2c;
-        }
+    LPS22HH(I2Class* _i2c);
+
+    uint8_t lpsReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout = TIMEOUT_I2C);
     float getPressure(); 
     float getTemperature();
-    uint8_t readWhoAmI();
+    bool readWhoAmI();
 };
 
 #endif
