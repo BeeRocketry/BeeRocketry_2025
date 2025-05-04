@@ -1,4 +1,7 @@
 #include "LPS22HH.h"
+uint8_t LPS22HH::lpsReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout){
+    return this->_i2c->I2CReadBytes(BMP_CHIPADR, regadr, temp, length, timeout);
+}
 float getPressure() {
     uint8_t buffer[3];
     readBytes(CHIP_ADDRESS, PRESSURE_OUT_XL, buffer, 3);
