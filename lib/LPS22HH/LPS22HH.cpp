@@ -30,6 +30,18 @@ float LPS22HH::getTemperature() {
     return (float)temp_data/TEMP_SENS;
 }
 
+float LPS22HH::getAltitude(float pressure){
+    double Tb = 288.15;
+    double Lb = 0.0065;
+    double Pb = SeaLevelhPa * 100;
+    double exp = 1.0 / 5.255;
+    double fac = Tb / Lb;
+
+    float altitude = fac * (1 - pow((float)(pressure / Pb), (float)exp));
+
+    return altitude;
+}
+
 bool LPS22HH::readWhoAmI() {
     uint8_t buffer = 0;
     this->lpsReadBytes(WHO_AM_I, &buffer, 1);
@@ -41,13 +53,15 @@ void LPS22HH::setCTRL_REG1(LPS_OUTPUT_DATA_RATE odrRate, LPS_EN_LPFP lpfp, LPS_B
 
     temp |= ((uint8_t)lpfp << 3) | (uint8_t)odrRate << 4 | (uint8_t)bdu << 1;
     this->lpsWriteByte(CTRL_REG1, temp);
-
 }
+
 void LPS22HH::setCTRL_REG2(LPS_LOW_NOISE lpsLowNoise) {
     uint8_t temp = 0;
+    
     temp |= ((uint8_t)lpsLowNoise << 1);
     this->lpsWriteByte(CTRL_REG2, temp);
 }
+
 void LPS22HH::resetLPS() {
     uint8_t temp = 0;
 

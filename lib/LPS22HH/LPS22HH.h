@@ -3,6 +3,8 @@
 
 #include "I2Class.h"
 
+#define SeaLevelhPa 1013.25
+
 #define CHIP_ADDRESS 0x5D
 
 #define INTERRUPT_CFG 0x0B
@@ -76,6 +78,7 @@ class LPS22HH {
     void resetLPS();
     float getPressure(); 
     float getTemperature();
+    float getAltitude(float pressure);
     bool readWhoAmI();
 };
 
