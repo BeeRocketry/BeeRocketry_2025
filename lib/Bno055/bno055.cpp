@@ -6,11 +6,11 @@ bool Bno055::bnoWriteByte(uint8_t regadr, uint8_t data){
     return this->_i2c->I2CWriteByte(BNO_I2C_Adr, regadr, data);
 }
 
-uint8_t Bno055::bnoReadByte(uint8_t regadr, uint8_t* temp, uint16_t timeout = TIMEOUT_I2C){
+uint8_t Bno055::bnoReadByte(uint8_t regadr, uint8_t* temp, uint16_t timeout){
     return this->_i2c->I2CReadByte(BNO_I2C_Adr, regadr, temp, timeout);
 }
 
-uint8_t Bno055::bnoReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout = TIMEOUT_I2C){
+uint8_t Bno055::bnoReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout){
     return this->_i2c->I2CReadBytes(BNO_I2C_Adr, regadr, temp, length, timeout);
 }
 

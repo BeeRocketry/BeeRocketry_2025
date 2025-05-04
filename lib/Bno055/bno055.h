@@ -327,9 +327,9 @@ class Bno055
 {
 private:
     I2Class* _i2c = nullptr;
-    float accResolution;
-    float gyroResolution;
-    float magResolution;
+    float accResolution = 1024;
+    float gyroResolution = 16;
+    float magResolution = 1;
     int16_t gyroOffsets[3] = {0};
     int16_t accOffsets[3] = {0};
     int16_t magOffsets[3] = {0};

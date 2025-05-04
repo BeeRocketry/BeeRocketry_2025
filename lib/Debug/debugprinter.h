@@ -11,8 +11,8 @@
 --------------------------------------------------------------------
 */
 
-extern HardwareSerial SeriPort;
-#define DEBUG_PRINTER SeriPort
+extern HardwareSerial usbPort;
+#define DEBUG_PRINTER usbPort
 
 #define DEBUG_MODE
 

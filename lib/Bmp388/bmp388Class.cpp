@@ -47,11 +47,11 @@ void bmp388::getCalibrationData(){
     CalibDataPointer = nullptr;
 }
 
-uint8_t bmp388::bmpReadByte(uint8_t regadr, uint8_t* temp, uint16_t timeout = 1000){
+uint8_t bmp388::bmpReadByte(uint8_t regadr, uint8_t* temp, uint16_t timeout){
     return this->_i2c->I2CReadByte(BMP_CHIPADR, regadr, temp, timeout);
 }
 
-uint8_t bmp388::bmpReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout = 1000){
+uint8_t bmp388::bmpReadBytes(uint8_t regadr, uint8_t* temp, uint8_t length, uint16_t timeout){
     return this->_i2c->I2CReadBytes(BMP_CHIPADR, regadr, temp, length, timeout);
 }
 

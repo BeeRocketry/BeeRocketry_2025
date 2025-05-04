@@ -60,7 +60,9 @@ I2Class::I2Class() : created(false){
 I2Class::I2Class(uint8_t sda, uint8_t scl) : isSet(true), created(true){
     this->wireI2C = new TwoWire();
 
-    this->wireI2C->begin(sda, scl);
+    this->wireI2C->setSDA(sda);
+    this->wireI2C->setSCL(scl);
+    this->wireI2C->begin();
     this->wireI2C->setClock(400000);
 }
 
