@@ -68,7 +68,7 @@ class LPS22HH {
         I2Class* i2c;
     public:
     LPS22HH(I2Class* _i2c) {
-            _i2c = i2c;
+            i2c = _i2c;
         }
     float getPressure(); 
     float getTemperature();
