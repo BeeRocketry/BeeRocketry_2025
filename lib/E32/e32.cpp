@@ -769,8 +769,8 @@ Status E32_433T30D::receiveDataPacket(uint8_t *data, const size_t& size) const{
     unsigned long t = millis();
 
     while(this->RFSerialPort->available() < size + 1){
-        if(this->RFSerialPort->available() == 0 && millis() - t > 100){
-            //this->DebuggerPort->println(F("Herhangi bir Veri Paketi gelmedi..."));
+        if(this->RFSerialPort->available() == 0 && millis() - t > 300){
+            this->DebuggerPort->println(F("Herhangi bir Veri Paketi gelmedi..."));
             return E32_NoMessage;
         }
         else if(millis() - t > this->_paramConfs.serialTimeout){

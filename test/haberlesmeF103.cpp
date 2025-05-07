@@ -8,21 +8,15 @@
 #define M1_Pin PA6
 #define AUX_Pin PA5
 
+#define RF_ADDR_LOW 0x09
+#define RF_ADDR_HIGH 0x01
+#define RF_CHAN RF_FREQ::FREQ_414
+
 #define RF_UART_TX PA9
 #define RF_UART_RX PA10
 
 #define PC_UART_TX PA2
 #define PC_UART_RX PA3
-
-#define SDA_Pin PB7
-#define SCL_Pin PB6
-
-#define RF_ADDR_LOW 0x03
-#define RF_ADDR_HIGH 0x05
-#define RF_CHAN RF_FREQ::FREQ_414
-
-#define RF_SEND_ADDR_HIGH 0x01
-#define RF_SEND_ADDR_LOW 0x09
 
 #define PACKET_SIZE 36
 
@@ -30,8 +24,6 @@ HardwareSerial usbPort(RF_UART_RX, RF_UART_TX);
 HardwareSerial rfPort(PC_UART_RX, PC_UART_TX);
 
 E32_433T30D *e32Obj = nullptr;
-I2Class* i2c_ = nullptr;
-Bno055 *bnoObj = nullptr;
 
 BNO_DOF3_Float acc, gyro, mag;
 
@@ -60,41 +52,28 @@ void setup()
     e32Obj->viewSettings();
     usbPort.println("RF Baslatildi...");
 
-    usbPort.println("I2C Baslatiliyor...");
-    i2c_ = new I2Class(SDA_Pin, SCL_Pin);
-    usbPort.println("I2C Baslatildi...");
-
-    usbPort.println("BNO055 Baslatiliyor...");
-    bnoObj = new Bno055(i2c_);
-
-    bnoObj->BNOInit();
-
-    usbPort.println("BNO055 Baslatildi...");
-
     delay(3000);
 }
 
 void loop()
 {
     usbPort.println(F("-----------------------------------------------"));
-    acc = bnoObj->getAccData();
-    gyro = bnoObj->getGyroData();
-    mag = bnoObj->getMagData();
 
-    printValues();
+    Status sts = e32Obj->receiveDataPacket(buffer, PACKET_SIZE);
+    if(sts != E32_NoMessage && sts != E32_CrcBroken){
+        usbPort.println(F("Paket alindi..."));
 
-    memcpy(buffer, &acc, sizeof(BNO_DOF3_Float));
-    memcpy(&buffer[12], &gyro, sizeof(BNO_DOF3_Float));
-    memcpy(&buffer[24], &mag, sizeof(BNO_DOF3_Float));
+        memcpy(&acc, buffer, sizeof(BNO_DOF3_Float));
+        memcpy(&gyro, &buffer[12], sizeof(BNO_DOF3_Float));
+        memcpy(&mag, &buffer[24], sizeof(BNO_DOF3_Float));
 
-    e32Obj->sendFixedDataPacket(RF_SEND_ADDR_HIGH, RF_SEND_ADDR_LOW, RF_CHAN, buffer, PACKET_SIZE);
-
-    usbPort.println(F("Veri Paketi Gonderildi..."));
+        printValues();
+    }
 
     usbPort.println(F("-----------------------------------------------"));
     usbPort.println();
-    
-    delay(1000);
+
+    delay(1200);
 }
 
 void printValues(){

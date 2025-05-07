@@ -8,8 +8,14 @@
 #define M1_Pin PA6
 #define AUX_Pin PA5
 
-#define SDA_Pin PB2
-#define SCL_Pin PB3
+#define RF_UART_TX PA9
+#define RF_UART_RX PA10
+
+#define PC_UART_TX PA2
+#define PC_UART_RX PA3
+
+#define SDA_Pin PB7
+#define SCL_Pin PB6
 
 #define RF_ADDR_LOW 0x03
 #define RF_ADDR_HIGH 0x05
@@ -20,8 +26,8 @@
 
 #define PACKET_SIZE 36
 
-HardwareSerial usbPort(PA10, PA9);
-HardwareSerial rfPort(PA3, PA2);
+HardwareSerial usbPort(RF_UART_RX, RF_UART_TX);
+HardwareSerial rfPort(PC_UART_RX, PC_UART_TX);
 
 E32_433T30D *e32Obj = nullptr;
 I2Class* i2c_ = nullptr;
@@ -64,6 +70,8 @@ void setup()
     bnoObj->BNOInit();
 
     usbPort.println("BNO055 Baslatildi...");
+
+    delay(3000);
 }
 
 void loop()
