@@ -305,9 +305,9 @@ struct BNO_STR_REGISTERS{
 };
 
 struct BNO_DOF3_Float{
-    float x;
-    float y;
-    float z;
+    float x = 0;
+    float y = 0;
+    float z = 0;
 };
 
 struct BNO_DOF3_int16{
