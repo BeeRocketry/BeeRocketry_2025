@@ -20,8 +20,8 @@
 
 #define PACKET_SIZE 36
 
-HardwareSerial usbPort(PC_UART_RX, PC_UART_TX);
-HardwareSerial rfPort(RF_UART_RX, RF_UART_TX);
+//HardwareSerial usbPort(PC_UART_RX, PC_UART_TX);
+//HardwareSerial rfPort(RF_UART_RX, RF_UART_TX);
 
 E32_433T30D *e32Obj = nullptr;
 

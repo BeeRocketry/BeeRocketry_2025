@@ -1,3 +1,6 @@
+#ifndef ALTITUDE_MANAGER_H
+#define ALTITUDE_MANAGER_H
+
 #include "bmp388.h"
 #include "LPS22HH.h"
 
@@ -12,14 +15,15 @@ public:
     float getAltitude();
     float getPressure();
     float getTemperature();
+    BaroData getBaroData() const;
 
     void setAltitudeDifference(float difference);
     void setPressureDifference(float difference);
     void setTemperatureDifference(float difference);
 
 private:
-    Bmp388* bmp;
-    LPS22HH* lps;
+    Bmp388* bmp = nullptr;
+    LPS22HH* lps = nullptr;;
     BaroData bmpData = {0};
     BaroData lpsData = {0};
     BaroData managerData = {0};
@@ -37,3 +41,5 @@ private:
     float pressureDifference = 20000.0f;
     float temperatureDifference = 1.5f;
 };
+
+#endif

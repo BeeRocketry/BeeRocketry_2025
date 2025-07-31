@@ -7,7 +7,7 @@
 #define M1_Pin PA6
 #define AUX_Pin PA5
 
-HardwareSerial usbPort(PA10, PA9);
+//HardwareSerial usbPort(PA10, PA9);
 HardwareSerial rfPort(PA3, PA2);
 
 E32_433T30D* e32Obj = nullptr;

@@ -18,7 +18,7 @@
 
 #define BuzzerPin PB5
 
-HardwareSerial usbPort(UART_RX, UART_TX);
+//HardwareSerial usbPort(UART_RX, UART_TX);
 
 I2Class* _i2c;
 Bno055* bno;

@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <HardwareSerial.h>
 
-HardwareSerial usbPort(PA10, PA9);
+//HardwareSerial usbPort(PA10, PA9);
 int cnt = 0;
 
 #define ANALOG_PIN PB0

@@ -6,7 +6,7 @@
 #define SDA_Pin PB7
 #define SCL_Pin PB8
 
-HardwareSerial usbPort(PA10, PA9);
+//HardwareSerial usbPort(PA10, PA9);
 
 I2Class* i2c_;
 Bno055* bno;

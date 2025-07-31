@@ -94,3 +94,7 @@ void AltitudeManager::setPressureDifference(float difference) {
 void AltitudeManager::setTemperatureDifference(float difference) {
     temperatureDifference = difference;
 }
+
+BaroData AltitudeManager::getBaroData() const {
+    return managerData;
+}
