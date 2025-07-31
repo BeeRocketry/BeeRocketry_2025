@@ -15,12 +15,6 @@ Application::Application(ApplicationRunState State) : runState(State) {
         rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
         gpsModule = new L76(GPSSerial, DebugSerial);
         break;
-        
-    case HaberlesmeReceiver_Run:
-        RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
-
-        rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
-        break;
     
     case Normal_Run:
         GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
@@ -44,6 +38,7 @@ Application::Application(ApplicationRunState State) : runState(State) {
         rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
         break;
 
+    case HaberlesmeReceiver_Run:
     case AlgoritmaReceiver_Run:
         RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
 
@@ -56,6 +51,23 @@ Application::Application(ApplicationRunState State) : runState(State) {
         
         altitudeManager = new AltitudeManager(I2CBaroBus);
         imu = new Bno055(I2CImuBus);
+        break;
+    
+    case KademeAyirmaBilgisayar_Run:
+    case KademeAyirma_Run:
+        RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
+
+        rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
+        break;
+
+    case YKI_Run:
+        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
+        I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
+        
+        altitudeManager = new AltitudeManager(I2CBaroBus);
+        imu = new Bno055(I2CImuBus);
+        gpsModule = new L76(GPSSerial, DebugSerial);
         break;
 
     default:
@@ -148,6 +160,18 @@ void Application::run() {
 
     case Fonksiyonel_Run:
         fonksiyonelRun();
+        break;
+
+    case KademeAyirma_Run:
+        kademeAyirma();
+        break;
+
+    case KademeAyirmaBilgisayar_Run:
+        kademeAyirmaBilgisayar();
+        break;
+
+    case YKI_Run:
+        ykiRun();
         break;
     }
 }
@@ -411,4 +435,153 @@ void Application::fonksiyonelPrint() {
     DEBUG_PRINT(F(" Z : ")); DEBUG_PRINTLN(imuData.mag.z);
 
     DEBUG_PRINTLN(F("------------------------------"));DEBUG_PRINTLN();
+}
+
+void Application::kademeAyirmaBilgisayar(){
+    rfModule->RFBegin(CONFIG_RF_HIGH_ADDR, CONFIG_RF_LOW_ADDR, CONFIG_RF_CHANNEL, CONFIG_RF_BAUDRATE,
+                      CONFIG_RF_AIR_DATA_RATE, CONFIG_RF_RSSI_BYTE, CONFIG_RF_PACKET_SIZE,
+                      CONFIG_RF_TRANSFER_MODE, CONFIG_RF_TRANSFER_POWER, CONFIG_RF_WIRELESS_WAKEUP,
+                      CONFIG_RF_UART_PARITY, CONFIG_RF_RSSI_AMBIENT, CONFIG_RF_LBT_ENABLE);
+
+    DebugSerial->println(F("Kademe Ayirma Bilgisayar Modu Baslatildi."));
+
+    rfModule->viewSettings();
+
+    uint8_t packet;
+
+    int state = 0;
+    bool isPrinted = false;
+
+    uint8_t apogeeSendPacket[3] = {0x12, 0x83, 0x51};
+    uint8_t mainSendPacket[3] = {0x37, 0x11, 0x52};
+
+    while(true){
+        if(usbPort.available()){
+            packet = usbPort.read();
+
+            if(state == 0 && packet == 'k'){
+                state = 1;
+                isPrinted = false;
+            } else if(state == 1 && packet == 'o'){
+                state = 2;
+                isPrinted = false;
+            } else if(state == 2 && (packet == 'a' || packet == 'z')){
+                state = 3;
+                isPrinted = false;
+                if(packet == 'a'){
+                    DEBUG_PRINTLN(F("Apogee Atesleme Sinyali Gonderiliyor..."));
+                    rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, apogeeSendPacket, sizeof(apogeeSendPacket));
+                }
+                else if(packet == 'z'){
+                    DEBUG_PRINTLN(F("Main Atesleme Sinyali Gonderiliyor..."));
+                    rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, mainSendPacket, sizeof(mainSendPacket));
+                }
+                DEBUG_PRINT(F("Atesleme Sinyali Gönderildi!")); DEBUG_PRINTLN();
+            }
+            else {
+                DEBUG_PRINT(F("Gecersiz Komut!")); DEBUG_PRINTLN();
+                isPrinted = false;
+                state = 0;
+                DEBUG_PRINTLN(F("Sifirlandi!")); DEBUG_PRINTLN();
+            }
+
+            usbPort.flush();
+        }
+
+        if(isPrinted == false){
+            switch (state)
+            {
+            case 0:
+                DEBUG_PRINTLN(F("Patlamak istiyorsan 'k' tuşuna bas!")); DEBUG_PRINTLN();
+                isPrinted = true;
+                break;
+            
+            case 1:
+                DEBUG_PRINTLN(F("Çok eminsen 'o' tuşuna bas!")); DEBUG_PRINTLN();
+                isPrinted = true;
+                break;
+
+            case 2:
+                DEBUG_PRINTLN(F("Apogee için 'a' main için 'z' tuşuna bas!")); DEBUG_PRINTLN();
+                isPrinted = true;
+                break;
+            }
+        }
+    }
+}
+
+void Application::kademeAyirma(){
+    rfModule->RFBegin(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, CONFIG_RF_BAUDRATE,
+                      CONFIG_RF_AIR_DATA_RATE, CONFIG_RF_RSSI_BYTE, CONFIG_RF_PACKET_SIZE,
+                      CONFIG_RF_TRANSFER_MODE, CONFIG_RF_TRANSFER_POWER, CONFIG_RF_WIRELESS_WAKEUP,
+                      CONFIG_RF_UART_PARITY, CONFIG_RF_RSSI_AMBIENT, CONFIG_RF_LBT_ENABLE);
+
+    DebugSerial->println(F("Kademe Ayirma Modu Baslatildi."));
+
+    rfModule->viewSettings();
+
+    RF_Msg msg;
+
+    uint8_t apogeeSendPacket[3] = {0x12, 0x83, 0x51};
+    uint8_t mainSendPacket[3] = {0x37, 0x11, 0x52};
+
+    pinMode(PYRO_APOGEE_PIN, OUTPUT);
+    pinMode(PYRO_MAIN_PIN, OUTPUT);
+
+    while(true){
+        msg = rfModule->receive();
+        if(E220_Success == msg.status){
+            if(msg.buffer[0] == apogeeSendPacket[0] && msg.buffer[1] == apogeeSendPacket[1] && msg.buffer[2] == apogeeSendPacket[2]){
+                DEBUG_PRINTLN(F("Apogee Atesleme Sinyali Alindi!"));
+                digitalWrite(PYRO_APOGEE_PIN, HIGH);
+                delay(500);
+                digitalWrite(PYRO_APOGEE_PIN, LOW);
+            }
+            else if(msg.buffer[0] == mainSendPacket[0] && msg.buffer[1] == mainSendPacket[1] && msg.buffer[2] == mainSendPacket[2]){
+                DEBUG_PRINTLN(F("Main Atesleme Sinyali Alindi!"));
+                digitalWrite(PYRO_MAIN_PIN, HIGH);
+                delay(500);
+                digitalWrite(PYRO_MAIN_PIN, LOW);
+            }
+        }
+    }
+}
+
+void Application::ykiRun() {
+    altitudeManager->initiliaze(CONFIG_BMP_PRESSURE_OVERSAMPLING, CONFIG_BMP_TEMPERATURE_OVERSAMPLING,
+                                CONFIG_BMP_IIR_SAMPLING, CONFIG_BMP_ODR_SAMPLING,
+                                CONFIG_LPS_ODR_RATE, CONFIG_LPS_LPFP, CONFIG_LPS_BDU, CONFIG_LPS_LOW_NOISE);
+    imu->BNOInit();
+
+    gpsModule->begin();
+
+    DebugSerial->println(F("YKI Modu Baslatildi."));
+
+    uint8_t packet[sizeof(BaroData) + sizeof(ImuData) + sizeof(GpsDataSimplified)];
+
+    GpsDataSimplified gpsDataSimplified;
+
+    while(true){
+        altitudeManager->update();
+        baroData = altitudeManager->getBaroData();
+        
+        gpsModule->getData();
+        gpsData = gpsModule->getDataStruct();
+        gpsDataSimplified.latitude = gpsData.latitude;
+        gpsDataSimplified.longitude = gpsData.longitude;
+        gpsDataSimplified.altitude = gpsData.altitude;
+
+        imuData.acc = imu->getAccData();
+        imuData.gyro = imu->getGyroData();
+        imuData.mag = imu->getMagData();
+
+        memset(packet, 0, sizeof(packet));
+        memcpy(packet, &baroData, sizeof(BaroData));
+        memcpy(packet + sizeof(BaroData), &imuData, sizeof(ImuData));
+        memcpy(packet + sizeof(BaroData) + sizeof(ImuData), &gpsDataSimplified, sizeof(GpsDataSimplified));
+
+        usbPort.write(packet, sizeof(packet));
+
+        delay(100);
+    }
 }

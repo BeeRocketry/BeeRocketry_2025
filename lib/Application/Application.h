@@ -16,7 +16,9 @@ enum ApplicationRunState : uint8_t {
     AlgoritmaReceiver_Run,
     Fonksiyonel_Run,
     YKI_Run,
-    SITSUT_Run
+    SITSUT_Run,
+    KademeAyirma_Run,
+    KademeAyirmaBilgisayar_Run
 };
 
 typedef enum _States : uint8_t {
@@ -65,6 +67,9 @@ private:
     void algoritmaReceiverRun();
     void fonksiyonelRun();
     void fonksiyonelPrint();
+    void kademeAyirma();
+    void kademeAyirmaBilgisayar();
+    void ykiRun();
 
     int rampaDegerTotalCount = 200;
     
