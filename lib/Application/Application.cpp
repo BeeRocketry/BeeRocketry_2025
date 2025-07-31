@@ -70,23 +70,26 @@ Application::Application(ApplicationRunState State) : runState(State) {
         gpsModule = new L76(GPSSerial, DebugSerial);
         break;
 
-    default:
+    case SITSUT_Run:
+        RS232Serial = new HardwareSerial(RS232_RX_PIN, RS232_TX_PIN);
+        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
+        I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
+        
+        altitudeManager = new AltitudeManager(I2CBaroBus);
+        imu = new Bno055(I2CImuBus);
+        gpsModule = new L76(GPSSerial, DebugSerial);
         break;
     }
-
-    // I2CBus = new I2Class(I2C_SDA_PIN, I2C_SCL_PIN);
-
-    // GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
-    // RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
-
-    // altitudeManager = new AltitudeManager(I2CBus);
-    // imu = new Bno055(I2CBus);
-    // rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
-    // gpsModule = new L76(GPSSerial, DebugSerial);
 }
 
 Application::~Application() {
     // Todo: State'e göre temizleme işlemleri yapılabilir.
+    if (RS232Serial != nullptr) {
+        RS232Serial->end();
+        delete RS232Serial;
+        RS232Serial = nullptr;
+    }
     if (I2CBaroBus != nullptr) {
         delete I2CBaroBus;
         I2CBaroBus = nullptr;
@@ -172,6 +175,10 @@ void Application::run() {
 
     case YKI_Run:
         ykiRun();
+        break;
+
+    case SITSUT_Run:
+        sitSutRun();
         break;
     }
 }
@@ -286,6 +293,7 @@ void Application::algoritmaRun() {
         baroData = altitudeManager->getBaroData();
 
         imuData.acc = imu->getAccData();
+
         imuData.gyro = imu->getGyroData();
         imuData.mag = imu->getMagData();
 
@@ -302,71 +310,89 @@ void Application::caseCheck(){
     switch (rocketState)
     {
     case STATE_RAMP:
-        if(!(abs(baroData.altitude - rampAlt) > 20)){
-            rampCnt = 0;
-            break;
-        }
+        {
+            if(!(abs(baroData.altitude - rampAlt) > 20)){
+                rampCnt = 0;
+                break;
+            }
 
-        rampCnt++;
+            rampCnt++;
 
-        if(rampCnt > 5){
-            rocketState = STATE_UNSAFE_TAKEOFF;
-            rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Rampa Durum Değişkeni Değişti");
+            if(rampCnt > 5){
+                rocketState = STATE_UNSAFE_TAKEOFF;
+                sutSelfState |= 0b1;
+                rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Rampa Durum Değişkeni Değişti");
+            }
         }
         break;
     
     case STATE_UNSAFE_TAKEOFF:
-        if(!(abs(baroData.altitude - rampAlt) > 100)){
-            safeCnt = 0;
-            break;
-        }
+        {
+            if(!(abs(baroData.altitude - rampAlt) > 100)){
+                safeCnt = 0;
+                break;
+            }
 
-        safeCnt++;
+            safeCnt++;
 
-        if(safeCnt > 5){
-            rocketState = STATE_SAFE_TAKEOFF;
-            rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Güvenli Sınır Durum Değişkeni Değişti");
+            if(safeCnt > 5){
+                rocketState = STATE_SAFE_TAKEOFF;
+                sutSelfState |= 0b1 << 2;
+                rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Güvenli Sınır Durum Değişkeni Değişti");
+            }
         }
         break;
 
     case STATE_SAFE_TAKEOFF:
-        float totalG = sqrtf(powf(imuData.acc.x, 2) + powf(imuData.acc.y, 2) + powf(imuData.acc.z, 2));
+        {
+            float totalG = sqrtf(powf(imuData.acc.x, 2) + powf(imuData.acc.y, 2) + powf(imuData.acc.z, 2));
 
-        int i0 = altitudeCircularInWrapper(altitudeCircularIn - 1);
-        int i1 = altitudeCircularInWrapper(altitudeCircularIn - 2);
-        int i2 = altitudeCircularInWrapper(altitudeCircularIn - 3);
-        int i3 = altitudeCircularInWrapper(altitudeCircularIn - 4);
-        int i4 = altitudeCircularInWrapper(altitudeCircularIn - 4);
+            int i0 = altitudeCircularInWrapper(altitudeCircularIn - 1);
+            int i1 = altitudeCircularInWrapper(altitudeCircularIn - 2);
+            int i2 = altitudeCircularInWrapper(altitudeCircularIn - 3);
+            int i3 = altitudeCircularInWrapper(altitudeCircularIn - 4);
+            int i4 = altitudeCircularInWrapper(altitudeCircularIn - 4);
 
-        float res = (25*altitudeCircular[i0] - 48*altitudeCircular[i1] + 36*altitudeCircular[i2] - 16*altitudeCircular[i3] + 3*altitudeCircular[i4]) / 12*1.0;
+            float res = (25*altitudeCircular[i0] - 48*altitudeCircular[i1] + 36*altitudeCircular[i2] - 16*altitudeCircular[i3] + 3*altitudeCircular[i4]) / 12*1.0;
 
-        if(res <= 0){
-            deriCnt++;
-        }
+            if(res <= 0){
+                deriCnt++;
+                sutSelfState |= 0b1 << 4;
+            }
 
-        if(totalG < 0.3){
-            accCnt++;
-        }
+            if(totalG < 0.3){
+                accCnt++;
+            }
 
-        if(deriCnt > 5 && accCnt > 5){
-            rocketState = STATE_FIRST_BOMB;
-            rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Apogee Algilandi");
-            digitalWrite(BUZZER_PIN, HIGH);
-            apogeeTime = millis();
+            if(deriCnt > 5 && accCnt > 5){
+                rocketState = STATE_FIRST_BOMB;
+                rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Apogee Algilandi");
+                sutSelfState |= 0b1 << 5;
+
+                if(runState != SITSUT_Run){
+                    digitalWrite(BUZZER_PIN, HIGH);
+                    apogeeTime = millis();
+                }
+            }
         }
         break;
     
     case STATE_FIRST_BOMB:
-        if(millis() - apogeeTime > 500)
-            digitalWrite(BUZZER_PIN, LOW);
+        {
+            if(runState != SITSUT_Run && millis() - apogeeTime > 500){
+                digitalWrite(BUZZER_PIN, LOW);
+            }
 
-        if(abs(baroData.altitude - rampAlt) < 100){
-            rocketState = STATE_SECOND_BOMB;
-            rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Main Algilandi");
+            if(abs(baroData.altitude - rampAlt) < 100){
+                rocketState = STATE_SECOND_BOMB;
+                sutSelfState |= 0b1 << 6;
+                rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Main Algilandi");
+            }
         }
         break;
 
     case STATE_SECOND_BOMB:
+        sutSelfState |= 0b1 << 7;
         break;
     }
 }
@@ -401,15 +427,38 @@ void Application::fonksiyonelRun() {
                                 CONFIG_LPS_ODR_RATE, CONFIG_LPS_LPFP, CONFIG_LPS_BDU, CONFIG_LPS_LOW_NOISE);
     imu->BNOInit();
 
+    ahrs.begin();
+    ahrs.setFusionAlgorithm(SensorFusion::EXTENDED_KALMAN);
+    ahrs.setDeclination(6.13f);
+    ahrs.setDOF(DOF::DOF_9);
+
     DebugSerial->println(F("Fonksiyonel Modu Baslatildi."));
+
+    SensorData tempData;
 
     while(true){
         altitudeManager->update();
         baroData = altitudeManager->getBaroData();
 
         imuData.acc = imu->getAccData();
+        tempData.aTimeStamp = millis();
         imuData.gyro = imu->getGyroData();
+        tempData.gTimeStamp = millis();
         imuData.mag = imu->getMagData();
+        tempData.mTimeStamp = millis();
+
+        tempData.ax = imuData.acc.x;
+        tempData.ay = imuData.acc.y;
+        tempData.az = imuData.acc.z;
+        tempData.gx = imuData.gyro.x;
+        tempData.gy = imuData.gyro.y;
+        tempData.gz = imuData.gyro.z;
+        tempData.mx = imuData.mag.x;
+        tempData.my = imuData.mag.y;
+        tempData.mz = imuData.mag.z;
+
+        ahrs.setData(tempData);
+        ahrs.update();
 
         fonksiyonelPrint();
 
@@ -433,6 +482,11 @@ void Application::fonksiyonelPrint() {
     DEBUG_PRINT(F("IMU Mag X : ")); DEBUG_PRINT(imuData.mag.x);
     DEBUG_PRINT(F(" Y : ")); DEBUG_PRINT(imuData.mag.y);
     DEBUG_PRINT(F(" Z : ")); DEBUG_PRINTLN(imuData.mag.z);
+
+    DEBUG_PRINT(F("Heading : ")); DEBUG_PRINTLN(ahrs.angles.heading);
+    DEBUG_PRINT(F("Pitch : ")); DEBUG_PRINTLN(ahrs.angles.pitch);
+    DEBUG_PRINT(F("Roll : ")); DEBUG_PRINTLN(ahrs.angles.roll);
+    DEBUG_PRINT(F("Yaw : ")); DEBUG_PRINTLN(ahrs.angles.yaw);
 
     DEBUG_PRINTLN(F("------------------------------"));DEBUG_PRINTLN();
 }
@@ -584,4 +638,219 @@ void Application::ykiRun() {
 
         delay(100);
     }
+}
+
+void Application::sitSutRun() {
+    altitudeManager->initiliaze(CONFIG_BMP_PRESSURE_OVERSAMPLING, CONFIG_BMP_TEMPERATURE_OVERSAMPLING,
+                                CONFIG_BMP_IIR_SAMPLING, CONFIG_BMP_ODR_SAMPLING,
+                                CONFIG_LPS_ODR_RATE, CONFIG_LPS_LPFP, CONFIG_LPS_BDU, CONFIG_LPS_LOW_NOISE);
+    imu->BNOInit();
+
+    gpsModule->begin();
+
+    RS232Serial->begin(115200, SERIAL_8N1);
+
+    DebugSerial->println(F("SIT-SUT Modu Baslatildi."));
+
+    uint8_t packet[sizeof(BaroData) + sizeof(ImuData) + sizeof(GpsDataSimplified)];
+
+    SutSitStates currentState = SUT_SIT_IDLE;
+
+    uint8_t sitPacket[36] = {0};
+
+    uint8_t sutSendPacket[6] = {0};
+    uint8_t sutReceivePacket[36] = {0};
+
+    ahrs.begin();
+    ahrs.setFusionAlgorithm(SensorFusion::EXTENDED_KALMAN);
+    ahrs.setDeclination(6.13f);
+    ahrs.setDOF(DOF::DOF_9);
+
+    SensorData tempData;
+
+    BaroData BaroSendData;
+    ImuData ImuSendData;
+    imuData_float ImuEulerData;
+
+    bool isSutFirst = false;
+
+    bool commandGet = false;
+
+    uint8_t commandSet[4] = {0};
+
+    while(true){
+        if(RS232Serial->available() > 0){
+            uint8_t receivedByte = RS232Serial->read();
+            if(receivedByte == 0xAB){
+                // nothing
+            }
+            else if(receivedByte == 0xAA){
+                commandGet = true;
+
+            }
+
+            if(commandGet == true){
+                while(RS232Serial->available() < 4);
+
+                RS232Serial->readBytes(commandSet, sizeof(commandSet));
+                if(commandSet[3] == 0x0D && commandSet[2] == 0x0A){
+                    commandGet = false;
+                }
+                else{
+                    memset(commandSet, 0, sizeof(commandSet));
+                    continue;
+                }
+
+                switch (commandSet[0])
+                {
+                case 0x20:
+                    if(commandSet[1] == 0x8C)
+                        currentState = STATE_SIT;
+                    break;
+                
+                case 0x22:
+                    if(commandSet[1] == 0x8E)
+                        currentState = STATE_SUT;
+                    break;
+
+                case 0x24:
+                    if(commandSet[1] == 0x90)
+                        currentState = SUT_SIT_IDLE;
+                    break;
+                }
+            }
+        }
+
+        if(currentState == STATE_SIT){
+            altitudeManager->update();
+            baroData = altitudeManager->getBaroData();
+            BaroSendData.altitude = roundf(baroData.altitude * 100.0f) / 100.0f;
+            BaroSendData.pressure = roundf(baroData.pressure * 100.0f) / 100.0f;
+            
+            gpsModule->getData();
+            gpsData = gpsModule->getDataStruct();
+
+            imuData.acc = imu->getAccData();
+            tempData.aTimeStamp = millis();
+            imuData.gyro = imu->getGyroData();
+            tempData.gTimeStamp = millis();
+            imuData.mag = imu->getMagData();
+            tempData.mTimeStamp = millis();
+
+            ImuSendData.acc.x = roundf(imuData.acc.x * 100.0f) / 100.0f;
+            ImuSendData.acc.y = roundf(imuData.acc.y * 100.0f) / 100.0f;
+            ImuSendData.acc.z = roundf(imuData.acc.z * 100.0f) / 100.0f;
+
+            tempData.ax = imuData.acc.x;
+            tempData.ay = imuData.acc.y;
+            tempData.az = imuData.acc.z;
+            tempData.gx = imuData.gyro.x;
+            tempData.gy = imuData.gyro.y;
+            tempData.gz = imuData.gyro.z;
+            tempData.mx = imuData.mag.x;
+            tempData.my = imuData.mag.y;
+            tempData.mz = imuData.mag.z;
+
+            ahrs.setData(tempData);
+            ahrs.update();
+
+            ImuEulerData.x = roundf(ahrs.angles.roll * 100.0f) / 100.0f;
+            ImuEulerData.y = roundf(ahrs.angles.pitch * 100.0f) / 100.0f;
+            ImuEulerData.z = roundf(ahrs.angles.yaw * 100.0f) / 100.0f;
+
+            sitPacket[0] = 0xAB; // Header
+            memcpy(sitPacket + 1, &BaroSendData.altitude, sizeof(float));
+            memcpy(sitPacket + 5, &BaroSendData.pressure, sizeof(float));
+            memcpy(sitPacket + 9, &ImuSendData.acc.x, sizeof(float));
+            memcpy(sitPacket + 13, &ImuSendData.acc.y, sizeof(float));
+            memcpy(sitPacket + 17, &ImuSendData.acc.z, sizeof(float));
+            memcpy(sitPacket + 21, &ImuEulerData.x, sizeof(float));
+            memcpy(sitPacket + 25, &ImuEulerData.y, sizeof(float));
+            memcpy(sitPacket + 29, &ImuEulerData.z, sizeof(float));
+
+            int totalCount = 0;
+            for(int i = 1; i < 33; i++) {
+                totalCount += sitPacket[i];
+            }
+            totalCount %= 256;
+            sitPacket[33] = totalCount;
+            sitPacket[34] = 0x0D;
+            sitPacket[35] = 0x0A;
+
+            RS232Serial->write(sitPacket, sizeof(sitPacket));
+
+            memset(sitPacket, 0, sizeof(sitPacket));
+
+            delay(100);
+        }
+        else if(currentState == STATE_SUT){
+            while(RS232Serial->available() < 35);
+
+            RS232Serial->readBytes(sutReceivePacket, sizeof(sutReceivePacket) - 1);
+
+            memcpy(&BaroSendData.altitude, &sutReceivePacket[1], sizeof(float));
+            memcpy(&BaroSendData.pressure, &sutReceivePacket[5], sizeof(float));
+            memcpy(&ImuSendData.acc.x, &sutReceivePacket[9], sizeof(float));
+            memcpy(&ImuSendData.acc.y, &sutReceivePacket[13], sizeof(float));
+            memcpy(&ImuSendData.acc.z, &sutReceivePacket[17], sizeof(float));
+            memcpy(&ImuEulerData.x, &sutReceivePacket[21], sizeof(float));
+            memcpy(&ImuEulerData.y, &sutReceivePacket[25], sizeof(float));
+            memcpy(&ImuEulerData.z, &sutReceivePacket[29], sizeof(float));
+
+            int totalCount = 0;
+            for(int i = 1; i < 33; i++) {
+                totalCount = sutReceivePacket[i];
+            }
+            totalCount %= 256;
+            if(totalCount != sutReceivePacket[33] || sutReceivePacket[34] != 0x0D || sutReceivePacket[35] != 0x0A) {
+                memset(&sutReceivePacket, 0, sizeof(sutReceivePacket));
+                continue;
+            }
+
+            if(isSutFirst == false){
+                rampAlt = BaroSendData.altitude;
+                isSutFirst = true;
+            }
+
+            altitudeCircularIn = altitudeCircularIn % 5;
+            altitudeCircular[altitudeCircularIn] = BaroSendData.altitude;
+
+            caseCheck();
+
+            sutSendPacket[0] = 0xAA;
+            sutSendPacket[1] = sutSelfState;
+            sutSendPacket[2] = 0x00;
+            int totalCountFor = 0;
+            totalCountFor += sutSendPacket[1] + sutSendPacket[2];
+            totalCountFor %= 256;
+            sutSendPacket[3] = totalCountFor;
+            sutSendPacket[4] = 0x0D;
+            sutSendPacket[5] = 0x0A;
+
+            RS232Serial->write(sutSendPacket, sizeof(sutSendPacket));
+
+            delay(100);
+        }
+        else if(currentState == SUT_SIT_IDLE){
+            resetCnt();
+            isSutFirst = false;
+            sutSelfState = 0;
+            commandGet = false;
+            memset(&BaroSendData, 0, sizeof(BaroData));
+            memset(&ImuSendData, 0, sizeof(ImuData));
+            memset(&ImuEulerData, 0, sizeof(imuData_float));
+        }
+    }
+}
+
+void Application::resetCnt() {
+    altitudeCircularIn = 0;
+    rampCnt = 0;
+    safeCnt = 0;
+    deriCnt = 0;
+    accCnt = 0;
+    rampAlt = 0.0f;
+    rocketState = STATE_RAMP;
+    apogeeTime = 0;
+    memset(altitudeCircular, 0, sizeof(altitudeCircular));
 }

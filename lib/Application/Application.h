@@ -7,6 +7,7 @@
 #include "L76.h"
 #include "PinSetup.h"
 #include "debugprinter.h"
+#include "ReefwingAHRS.h"
 
 enum ApplicationRunState : uint8_t {
     Normal_Run,
@@ -29,6 +30,12 @@ typedef enum _States : uint8_t {
     STATE_SECOND_BOMB
 } States;
 
+typedef enum SutSitStates : uint8_t {
+    STATE_SIT,
+    STATE_SUT,
+    SUT_SIT_IDLE
+} SutSitStates;
+
 class Application {
 public:
     Application(ApplicationRunState State);
@@ -42,6 +49,9 @@ private:
     HardwareSerial *DebugSerial = nullptr;
     HardwareSerial *GPSSerial = nullptr;
     HardwareSerial *RFSerial = nullptr;
+    HardwareSerial *RS232Serial = nullptr;
+    
+    ReefwingAHRS ahrs;
 
     AltitudeManager *altitudeManager = nullptr;
     Bno055 *imu = nullptr;
@@ -70,6 +80,9 @@ private:
     void kademeAyirma();
     void kademeAyirmaBilgisayar();
     void ykiRun();
+    void sitSutRun();
+
+    void resetCnt();
 
     int rampaDegerTotalCount = 200;
     
@@ -84,6 +97,8 @@ private:
     int accCnt = 0;
 
     time_t apogeeTime = 0;
+
+    uint8_t sutSelfState = 0;
 };
 
 #endif
