@@ -8,7 +8,7 @@ void setup(){
     SystemClock_Config();
     //MX_GPIO_Init();
     
-    app = new Application(SITSUT_Run);
+    app = new Application(Fonksiyonel_Run);
     app->run();
 }
 

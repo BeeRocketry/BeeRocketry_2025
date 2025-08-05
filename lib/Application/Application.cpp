@@ -544,9 +544,14 @@ void Application::fonksiyonelRun() {
         ahrs.setData(tempData);
         ahrs.update();
 
-        fonksiyonelPrint();
+        imuEulerData.x = ahrs.angles.pitch;
+        imuEulerData.y = ahrs.angles.roll;
+        imuEulerData.z = ahrs.angles.yaw;
 
-        delay(800);
+        //fonksiyonelPrint();
+        betterPlotterPrint();
+
+        delay(100);
     }
 }
 
@@ -714,7 +719,6 @@ void Application::ykiRun() {
     GpsDataSimplified gpsDataSimplified2;
 
     SensorData tempData;
-    imuData_float ImuEulerData;
 
     int durum = 0;
 
@@ -750,9 +754,9 @@ void Application::ykiRun() {
         ahrs.setData(tempData);
         ahrs.update();
 
-        ImuEulerData.x = roundf(ahrs.angles.roll * 100.0f) / 100.0f;
-        ImuEulerData.y = roundf(ahrs.angles.pitch * 100.0f) / 100.0f;
-        ImuEulerData.z = roundf(ahrs.angles.yaw * 100.0f) / 100.0f;
+        imuEulerData.x = roundf(ahrs.angles.roll * 100.0f) / 100.0f;
+        imuEulerData.y = roundf(ahrs.angles.pitch * 100.0f) / 100.0f;
+        imuEulerData.z = roundf(ahrs.angles.yaw * 100.0f) / 100.0f;
 
         durum = rand() % 4;
 
@@ -769,12 +773,12 @@ void Application::ykiRun() {
         buffer += String(imuData.acc.x) + ",";
         buffer += String(imuData.acc.y) + ",";
         buffer += String(imuData.acc.z) + ",";
-        buffer += String(ImuEulerData.x) + ",";
+        buffer += String(imuEulerData.x) + ",";
         buffer += String(durum) + ",";
         buffer += String(imuData.gyro.z) + ",";
         buffer += String(0) + ",";
-        buffer += String(ImuEulerData.y) + ",";
-        buffer += String(ImuEulerData.z) + "\n";
+        buffer += String(imuEulerData.y) + ",";
+        buffer += String(imuEulerData.z) + "\n";
 
         DEBUG_PRINT(buffer);
         usbPort.write(buffer.c_str(), buffer.length());
@@ -815,7 +819,6 @@ void Application::sitSutRun() {
 
     BaroData BaroSendData;
     ImuData ImuSendData;
-    imuData_float ImuEulerData;
 
     bool isSutFirst = false;
 
@@ -906,9 +909,9 @@ void Application::sitSutRun() {
             ahrs.setData(tempData);
             ahrs.update();
 
-            ImuEulerData.x = roundf(ahrs.angles.roll * 100.0f) / 100.0f;
-            ImuEulerData.y = roundf(ahrs.angles.pitch * 100.0f) / 100.0f;
-            ImuEulerData.z = roundf(ahrs.angles.yaw * 100.0f) / 100.0f;
+            imuEulerData.x = roundf(ahrs.angles.roll * 100.0f) / 100.0f;
+            imuEulerData.y = roundf(ahrs.angles.pitch * 100.0f) / 100.0f;
+            imuEulerData.z = roundf(ahrs.angles.yaw * 100.0f) / 100.0f;
 
             sitPacket[0] = 0xAB; // Header
             memcpy(sitPacket + 1, &BaroSendData.altitude, sizeof(float));
@@ -916,9 +919,9 @@ void Application::sitSutRun() {
             memcpy(sitPacket + 9, &ImuSendData.acc.x, sizeof(float));
             memcpy(sitPacket + 13, &ImuSendData.acc.y, sizeof(float));
             memcpy(sitPacket + 17, &ImuSendData.acc.z, sizeof(float));
-            memcpy(sitPacket + 21, &ImuEulerData.x, sizeof(float));
-            memcpy(sitPacket + 25, &ImuEulerData.y, sizeof(float));
-            memcpy(sitPacket + 29, &ImuEulerData.z, sizeof(float));
+            memcpy(sitPacket + 21, &imuEulerData.x, sizeof(float));
+            memcpy(sitPacket + 25, &imuEulerData.y, sizeof(float));
+            memcpy(sitPacket + 29, &imuEulerData.z, sizeof(float));
 
             int totalCount = 0;
             for(int i = 1; i < 33; i++) {
@@ -945,9 +948,9 @@ void Application::sitSutRun() {
             memcpy(&ImuSendData.acc.x, &sutReceivePacket[9], sizeof(float));
             memcpy(&ImuSendData.acc.y, &sutReceivePacket[13], sizeof(float));
             memcpy(&ImuSendData.acc.z, &sutReceivePacket[17], sizeof(float));
-            memcpy(&ImuEulerData.x, &sutReceivePacket[21], sizeof(float));
-            memcpy(&ImuEulerData.y, &sutReceivePacket[25], sizeof(float));
-            memcpy(&ImuEulerData.z, &sutReceivePacket[29], sizeof(float));
+            memcpy(&imuEulerData.x, &sutReceivePacket[21], sizeof(float));
+            memcpy(&imuEulerData.y, &sutReceivePacket[25], sizeof(float));
+            memcpy(&imuEulerData.z, &sutReceivePacket[29], sizeof(float));
 
             fonksiyonelPrint();
 
@@ -992,7 +995,7 @@ void Application::sitSutRun() {
             commandGet = false;
             memset(&BaroSendData, 0, sizeof(BaroData));
             memset(&ImuSendData, 0, sizeof(ImuData));
-            memset(&ImuEulerData, 0, sizeof(imuData_float));
+            memset(&imuEulerData, 0, sizeof(imuData_float));
         }
     }
 }
@@ -1025,4 +1028,41 @@ void Application::gpsTestRun(){
         gpsModule->printData();
         delay(2000);
     }
+}
+
+void Application::betterPlotterPrint(){
+    float t = millis() / 1000.0;
+
+    this->DebugSerial->print(t);
+    this->DebugSerial->print(" ");
+
+    this->DebugSerial->print(imuData.acc.x);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(imuData.acc.y);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(imuData.acc.z);
+    this->DebugSerial->print(" ");
+
+    this->DebugSerial->print(imuData.gyro.x);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(imuData.gyro.y);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(imuData.gyro.z);
+    this->DebugSerial->print(" ");
+
+    this->DebugSerial->print(imuData.mag.x);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(imuData.mag.y);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(imuData.mag.z);
+    this->DebugSerial->print(" ");
+
+    this->DebugSerial->print(baroData.altitude);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(baroData.pressure);
+    this->DebugSerial->print(" ");
+    this->DebugSerial->print(baroData.temperature);
+    this->DebugSerial->print(" ");
+    
+    this->DebugSerial->println();
 }

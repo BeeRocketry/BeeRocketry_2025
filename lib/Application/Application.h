@@ -69,6 +69,7 @@ private:
     BaroData baroData;
     GpsData gpsData;
     ImuData imuData;
+    imuData_float imuEulerData;
 
     void getData();
 
@@ -88,6 +89,8 @@ private:
     void ykiRun();
     void sitSutRun();
     void gpsTestRun();
+
+    void betterPlotterPrint();
 
     void resetCnt();
 
