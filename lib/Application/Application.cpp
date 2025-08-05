@@ -21,6 +21,7 @@ Application::Application(ApplicationRunState State) : runState(State) {
         break;
 
     case Algoritma_Run:
+        #define ALGO_DEFINED
         I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
         I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
         RFSoftSerial = new SoftwareSerial(RF_RX_PIN, RF_TX_PIN);
@@ -65,6 +66,7 @@ Application::Application(ApplicationRunState State) : runState(State) {
         break;
 
     case SITSUT_Run:
+        #define SITSUT_DEFINED
         RS232Serial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
         //GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
         I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
@@ -362,7 +364,13 @@ void Application::caseCheck(){
     {
     case STATE_RAMP:
         {
-            if(!(abs(baroData.altitude - rampAlt) > 20)){
+            if(
+                #if defined(ALGO_DEFINED)
+                    ((abs(baroData.altitude - rampAlt) <= 20))
+                #elif defined(SITSUT_DEFINED)
+                    ((abs(baroData.altitude - rampAlt) <= 200))
+                #endif
+                ){
                 rampCnt = 0;
                 break;
             }
@@ -373,13 +381,20 @@ void Application::caseCheck(){
                 rocketState = STATE_UNSAFE_TAKEOFF;
                 sutSelfState |= 0b1;
                 rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Rampa Durum Değişkeni Değişti");
+                this->DebugSerial->println("Rampa Durum Değişkeni Değişti");
             }
         }
         break;
     
     case STATE_UNSAFE_TAKEOFF:
         {
-            if(!(abs(baroData.altitude - rampAlt) > 100)){
+            if(
+                #if defined(ALGO_DEFINED)
+                    ((abs(baroData.altitude - rampAlt) <= 100))
+                #elif defined(SITSUT_DEFINED)
+                    ((abs(baroData.altitude - rampAlt) <= 1000))
+                #endif
+                ){
                 safeCnt = 0;
                 break;
             }
@@ -390,6 +405,7 @@ void Application::caseCheck(){
                 rocketState = STATE_SAFE_TAKEOFF;
                 sutSelfState |= 0b1 << 2;
                 rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Güvenli Sınır Durum Değişkeni Değişti");
+                this->DebugSerial->println("Güvenli Sınır Durum Değişkeni Değişti");
             }
         }
         break;
@@ -419,6 +435,7 @@ void Application::caseCheck(){
                 rocketState = STATE_FIRST_BOMB;
                 rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Apogee Algilandi");
                 sutSelfState |= 0b1 << 5;
+                this->DebugSerial->println("Apogee Algilandi");
 
                 if(runState != SITSUT_Run){
                     digitalWrite(BUZZER_PIN, HIGH);
@@ -434,10 +451,17 @@ void Application::caseCheck(){
                 digitalWrite(BUZZER_PIN, LOW);
             }
 
-            if(abs(baroData.altitude - rampAlt) < 100){
+            if(
+                #if defined(ALGO_DEFINED)
+                    ((abs(baroData.altitude - rampAlt) < 100))
+                #elif defined(SITSUT_DEFINED)
+                    ((abs(baroData.altitude - rampAlt) < 550))
+                #endif
+                ){
                 rocketState = STATE_SECOND_BOMB;
                 sutSelfState |= 0b1 << 6;
                 rfModule->sendStatus(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, "Main Algilandi");
+                this->DebugSerial->println("Main Algilandi");
             }
         }
         break;
@@ -513,9 +537,9 @@ void Application::fonksiyonelRun() {
         tempData.gx = imuData.gyro.x;
         tempData.gy = imuData.gyro.y;
         tempData.gz = imuData.gyro.z;
-        tempData.mx = imuData.mag.x;
-        tempData.my = imuData.mag.y;
-        tempData.mz = imuData.mag.z;
+        tempData.mx = imuData.mag.x * 0.01;
+        tempData.my = imuData.mag.y * 0.01;
+        tempData.mz = imuData.mag.z * 0.01;
 
         ahrs.setData(tempData);
         ahrs.update();
@@ -713,6 +737,16 @@ void Application::ykiRun() {
         imuData.gyro = imu->getGyroData();
         imuData.mag = imu->getMagData();
 
+        tempData.ax = imuData.acc.x;
+        tempData.ay = imuData.acc.y;
+        tempData.az = imuData.acc.z;
+        tempData.gx = imuData.gyro.x;
+        tempData.gy = imuData.gyro.y;
+        tempData.gz = imuData.gyro.z;
+        tempData.mx = imuData.mag.x * 0.01f;
+        tempData.my = imuData.mag.y * 0.01f;
+        tempData.mz = imuData.mag.z * 0.01f;
+
         ahrs.setData(tempData);
         ahrs.update();
 
@@ -740,7 +774,7 @@ void Application::ykiRun() {
         buffer += String(imuData.gyro.z) + ",";
         buffer += String(0) + ",";
         buffer += String(ImuEulerData.y) + ",";
-        buffer += String(imuData.gyro.z) + "\n";
+        buffer += String(ImuEulerData.z) + "\n";
 
         DEBUG_PRINT(buffer);
         usbPort.write(buffer.c_str(), buffer.length());
@@ -865,9 +899,9 @@ void Application::sitSutRun() {
             tempData.gx = imuData.gyro.x;
             tempData.gy = imuData.gyro.y;
             tempData.gz = imuData.gyro.z;
-            tempData.mx = imuData.mag.x;
-            tempData.my = imuData.mag.y;
-            tempData.mz = imuData.mag.z;
+            tempData.mx = imuData.mag.x * 0.01f;
+            tempData.my = imuData.mag.y * 0.01f;
+            tempData.mz = imuData.mag.z * 0.01f;
 
             ahrs.setData(tempData);
             ahrs.update();
