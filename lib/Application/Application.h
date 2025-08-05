@@ -8,6 +8,7 @@
 #include "PinSetup.h"
 #include "debugprinter.h"
 #include "ReefwingAHRS.h"
+#include <SoftwareSerial.h>
 
 enum ApplicationRunState : uint8_t {
     Normal_Run,
@@ -19,7 +20,9 @@ enum ApplicationRunState : uint8_t {
     YKI_Run,
     SITSUT_Run,
     KademeAyirma_Run,
-    KademeAyirmaBilgisayar_Run
+    KademeAyirmaBilgisayar_Run,
+    GPS_Test,
+    Haberlesme_Gorev_Run
 };
 
 typedef enum _States : uint8_t {
@@ -49,8 +52,11 @@ private:
     HardwareSerial *DebugSerial = nullptr;
     HardwareSerial *GPSSerial = nullptr;
     HardwareSerial *RFSerial = nullptr;
-    HardwareSerial *RS232Serial = nullptr;
     
+    HardwareSerial *RS232Serial = nullptr;
+    SoftwareSerial *RFSoftSerial = nullptr;
+    SoftwareSerial *GPSSoftSerial = nullptr;
+
     ReefwingAHRS ahrs;
 
     AltitudeManager *altitudeManager = nullptr;
@@ -81,6 +87,7 @@ private:
     void kademeAyirmaBilgisayar();
     void ykiRun();
     void sitSutRun();
+    void gpsTestRun();
 
     void resetCnt();
 

@@ -20,7 +20,9 @@ public:
     void setAltitudeDifference(float difference);
     void setPressureDifference(float difference);
     void setTemperatureDifference(float difference);
-
+    
+    void bmpPrint();
+    void lpsPrint();
 private:
     Bmp388* bmp = nullptr;
     LPS22HH* lps = nullptr;;

@@ -1,12 +1,15 @@
-#include <Arduino.h>
-#include <HardwareSerial.h>
+#include "main.h"
 
-#include "Application.h"
-
-Application app(Haberlesme_Run);
+Application *app;
 
 void setup(){
-    app.run();
+    //MPU_Config();
+    //HAL_Init();
+    SystemClock_Config();
+    //MX_GPIO_Init();
+    
+    app = new Application(SITSUT_Run);
+    app->run();
 }
 
 void loop(){

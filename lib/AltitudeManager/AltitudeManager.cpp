@@ -42,7 +42,7 @@ void AltitudeManager::calculateValues(){
 }
 
 void AltitudeManager::calculateTemp(){
-    if(abs(bmpData.temperature - lpsData.temperature) > temperatureDifference){
+    if(abs(bmpData.temperature - lpsData.temperature) < temperatureDifference){
         managerData.temperature = (bmpData.temperature + lpsData.temperature) / 2.0f;
     } else {
         managerData.temperature = lpsData.temperature;
@@ -52,7 +52,7 @@ void AltitudeManager::calculateTemp(){
 }
 
 void AltitudeManager::calculatePressure(){
-    if(abs(bmpData.pressure - lpsData.pressure) > pressureDifference){
+    if(abs(bmpData.pressure - lpsData.pressure) < pressureDifference){
         managerData.pressure = (bmpData.pressure + lpsData.pressure) / 2.0f;
     } else {
         managerData.pressure = lpsData.pressure;
@@ -62,7 +62,7 @@ void AltitudeManager::calculatePressure(){
 }
 
 void AltitudeManager::calculateAltitude(){
-    if(abs(bmpData.altitude - lpsData.altitude) > altitudeDifference){
+    if(abs(bmpData.altitude - lpsData.altitude) < altitudeDifference){
         managerData.altitude = (bmpData.altitude + lpsData.altitude) / 2.0f;
     } else {
         managerData.altitude = lpsData.altitude;
@@ -97,4 +97,16 @@ void AltitudeManager::setTemperatureDifference(float difference) {
 
 BaroData AltitudeManager::getBaroData() const {
     return managerData;
+}
+
+void AltitudeManager::bmpPrint(){
+    DEBUG_PRINT(F("BMP Altitude : ")); DEBUG_PRINTLN(bmpData.altitude);
+    DEBUG_PRINT(F("BMP Pressure : ")); DEBUG_PRINTLN(bmpData.pressure);
+    DEBUG_PRINT(F("BMP Temperature : ")); DEBUG_PRINTLN(bmpData.temperature);
+}
+
+void AltitudeManager::lpsPrint(){
+    DEBUG_PRINT(F("LPS Altitude : ")); DEBUG_PRINTLN(lpsData.altitude);
+    DEBUG_PRINT(F("LPS Pressure : ")); DEBUG_PRINTLN(lpsData.pressure);
+    DEBUG_PRINT(F("LPS Temperature : ")); DEBUG_PRINTLN(lpsData.temperature);
 }

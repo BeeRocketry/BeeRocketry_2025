@@ -1,6 +1,6 @@
 #include "Application.h"
 
-HardwareSerial usbPort(DEBUG_TX_PIN, DEBUG_RX_PIN);
+HardwareSerial usbPort(DEBUG_RX_PIN, DEBUG_TX_PIN);
 
 Application::Application(ApplicationRunState State) : runState(State) {
     DebugSerial = &usbPort;
@@ -8,37 +8,31 @@ Application::Application(ApplicationRunState State) : runState(State) {
     
     switch (runState)
     {
-    case Haberlesme_Run:
-        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
-        RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
-
-        rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
-        gpsModule = new L76(GPSSerial, DebugSerial);
-        break;
-    
     case Normal_Run:
-        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        //GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
         I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
         I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
-        RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
+        RFSoftSerial = new SoftwareSerial(RF_RX_PIN, RF_TX_PIN);
 
         altitudeManager = new AltitudeManager(I2CBaroBus);
         imu = new Bno055(I2CImuBus);
-        rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
+        rfModule = new E220(RFSoftSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
         gpsModule = new L76(GPSSerial, DebugSerial);
         break;
 
     case Algoritma_Run:
         I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
         I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
-        RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
+        RFSoftSerial = new SoftwareSerial(RF_RX_PIN, RF_TX_PIN);
 
         altitudeManager = new AltitudeManager(I2CBaroBus);
         imu = new Bno055(I2CImuBus);
-        rfModule = new E220(RFSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
+        rfModule = new E220(RFSoftSerial, RF_AUX_PIN, RF_M0_PIN, RF_M1_PIN, DebugSerial);
         break;
 
+    case Haberlesme_Run:
     case HaberlesmeReceiver_Run:
+    case Haberlesme_Gorev_Run:
     case AlgoritmaReceiver_Run:
         RFSerial = new HardwareSerial(RF_RX_PIN, RF_TX_PIN);
 
@@ -61,7 +55,7 @@ Application::Application(ApplicationRunState State) : runState(State) {
         break;
 
     case YKI_Run:
-        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        //GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
         I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
         I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
         
@@ -71,13 +65,26 @@ Application::Application(ApplicationRunState State) : runState(State) {
         break;
 
     case SITSUT_Run:
-        RS232Serial = new HardwareSerial(RS232_RX_PIN, RS232_TX_PIN);
-        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        RS232Serial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        //GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
         I2CImuBus = new I2Class(IMU_I2C_SDA_PIN, IMU_I2C_SCL_PIN);
         I2CBaroBus = new I2Class(BARO_I2C_SDA_PIN, BARO_I2C_SCL_PIN);
         
         altitudeManager = new AltitudeManager(I2CBaroBus);
         imu = new Bno055(I2CImuBus);
+        gpsModule = new L76(GPSSerial, DebugSerial);
+        break;
+
+    case GPS_Test:
+        ////GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+        GPSSerial = new HardwareSerial(GPS_RX_PIN, GPS_TX_PIN);
+
+        pinMode(GNSS_EN_PIN, OUTPUT);
+        digitalWrite(GNSS_EN_PIN, LOW);
+
+        pinMode(GNSS_CTRL_PIN, OUTPUT);
+        digitalWrite(GNSS_CTRL_PIN, LOW);
+
         gpsModule = new L76(GPSSerial, DebugSerial);
         break;
     }
@@ -103,10 +110,22 @@ Application::~Application() {
         DebugSerial = nullptr;
     }
     if (GPSSerial != nullptr) {
+        GPSSerial->end();
         delete GPSSerial;
         GPSSerial = nullptr;
     }
+    if (GPSSoftSerial != nullptr) {
+        GPSSoftSerial->end();
+        delete GPSSoftSerial;
+        GPSSoftSerial = nullptr;
+    }
+    if (RFSoftSerial != nullptr) {
+        RFSoftSerial->end();
+        delete RFSoftSerial;
+        RFSoftSerial = nullptr;
+    }
     if (RFSerial != nullptr) {
+        RFSerial->end();
         delete RFSerial;
         RFSerial = nullptr;
     }
@@ -146,6 +165,7 @@ void Application::run() {
     switch (runState)
     {
     case Haberlesme_Run:
+    case Haberlesme_Gorev_Run:
         haberlesmeRun();
         break;
     
@@ -180,6 +200,10 @@ void Application::run() {
     case SITSUT_Run:
         sitSutRun();
         break;
+
+    case GPS_Test:
+        gpsTestRun();
+        break;
     }
 }
 
@@ -196,33 +220,54 @@ void Application::getData() {
 }
 
 void Application::haberlesmeRun() {
-    rfModule->RFBegin(CONFIG_RF_HIGH_ADDR, CONFIG_RF_LOW_ADDR, CONFIG_RF_CHANNEL, CONFIG_RF_BAUDRATE,
-                      CONFIG_RF_AIR_DATA_RATE, CONFIG_RF_RSSI_BYTE, CONFIG_RF_PACKET_SIZE,
-                      CONFIG_RF_TRANSFER_MODE, CONFIG_RF_TRANSFER_POWER, CONFIG_RF_WIRELESS_WAKEUP,
-                      CONFIG_RF_UART_PARITY, CONFIG_RF_RSSI_AMBIENT, CONFIG_RF_LBT_ENABLE);
+    if (runState == Haberlesme_Run)
+        rfModule->RFBegin(CONFIG_RF_HIGH_ADDR, CONFIG_RF_LOW_ADDR, CONFIG_RF_CHANNEL, CONFIG_RF_BAUDRATE,
+                        CONFIG_RF_AIR_DATA_RATE, CONFIG_RF_RSSI_BYTE, CONFIG_RF_PACKET_SIZE,
+                        CONFIG_RF_TRANSFER_MODE, CONFIG_RF_TRANSFER_POWER, CONFIG_RF_WIRELESS_WAKEUP,
+                        CONFIG_RF_UART_PARITY, CONFIG_RF_RSSI_AMBIENT, CONFIG_RF_LBT_ENABLE);
+    else
+        rfModule->RFBegin(GOREV_RF_HIGH_ADDR, GOREV_RF_LOW_ADDR, CONFIG_RF_CHANNEL, CONFIG_RF_BAUDRATE,
+                        CONFIG_RF_AIR_DATA_RATE, CONFIG_RF_RSSI_BYTE, CONFIG_RF_PACKET_SIZE,
+                        CONFIG_RF_TRANSFER_MODE, CONFIG_RF_TRANSFER_POWER, CONFIG_RF_WIRELESS_WAKEUP,
+                        CONFIG_RF_UART_PARITY, CONFIG_RF_RSSI_AMBIENT, CONFIG_RF_LBT_ENABLE);
 
-    gpsModule->begin();
+    //gpsModule->begin();
 
     DebugSerial->println(F("Haberlesme Modu Baslatildi."));
 
     rfModule->viewSettings();
 
-    uint8_t packet[sizeof(GpsData)];
+    uint8_t packet[sizeof(GpsData) + 1];
 
     while(true){
-        gpsModule->getData();
-        gpsData = gpsModule->getDataStruct();
+        //gpsModule->getData();
+        //gpsData = gpsModule->getDataStruct();
+
+        gpsData.latitude = 39.819478 + ((float)(rand() % 10) / 1000000);
+        gpsData.longitude = 32.561892 + ((float)(rand() % 10) / 1000000);
+        gpsData.altitude = rand() % 20 + 980;
 
         haberlesmePrint();
 
         memset(packet, 0, sizeof(packet));
-        memcpy(packet, &gpsData, sizeof(GpsData));
+        if(runState == Haberlesme_Run) {
+            packet[0] = 'u';
+        }
+        else if(runState == Haberlesme_Gorev_Run) {
+            packet[0] = 'g';
+        }
+        memcpy(&packet[1], &gpsData, sizeof(GpsData));
 
-        Status status = rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, packet, sizeof(GpsData));
+        Status status = rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, packet, sizeof(packet));
 
-        DEBUG_PRINTLN(F("Veri Gonderildi"));
+        if(status == E220_Success){
+            DEBUG_PRINTLN(F("Veri Gonderildi"));
+        }
+        else{
+            DEBUG_PRINTLN(F("Başarısız"));
+        }
 
-        delay(3000);
+        delay(10000);
     }
 }
 
@@ -248,10 +293,16 @@ void Application::haberlesmeReceiverRun() {
     while(true){
         msg = rfModule->receive();
         if(E220_Success == msg.status){
-            memcpy(&gpsData, msg.buffer, sizeof(GpsData));
+            memcpy(&gpsData, &msg.buffer[1], sizeof(GpsData));
 
+            DEBUG_PRINTLN(F("------------------------------"));DEBUG_PRINTLN();
             DEBUG_PRINTLN(F("Veri Alindi"));
-
+            if(msg.buffer[0] == 'u') {
+                DEBUG_PRINTLN("UKB Konum: ");
+            }
+            else {
+                DEBUG_PRINTLN("Görev Yükü Konum: ");
+            }
             haberlesmePrint();
         }
     }
@@ -432,9 +483,18 @@ void Application::fonksiyonelRun() {
     ahrs.setDeclination(6.13f);
     ahrs.setDOF(DOF::DOF_9);
 
-    DebugSerial->println(F("Fonksiyonel Modu Baslatildi."));
+    DEBUG_PRINTLN(F("Fonksiyonel Modu Baslatildi."));
+
+    pinMode(BUZZER_PIN, OUTPUT);
 
     SensorData tempData;
+
+    analogWrite(BUZZER_PIN, 0);
+    analogWrite(BUZZER_PIN, 1023);
+    delay(100);
+    time_t startTime = millis();
+    while(millis() - startTime < 200);
+    analogWrite(BUZZER_PIN, 0);
 
     while(true){
         altitudeManager->update();
@@ -462,14 +522,14 @@ void Application::fonksiyonelRun() {
 
         fonksiyonelPrint();
 
-        delay(700);
+        delay(800);
     }
 }
 
 void Application::fonksiyonelPrint() {
-    DEBUG_PRINT(F("\nBaro Yuksekligi : ")); DEBUG_PRINT(baroData.altitude);
-    DEBUG_PRINT(F(" Barometre Basinci : ")); DEBUG_PRINT(baroData.pressure);
-    DEBUG_PRINT(F(" Barometre Sicakligi : ")); DEBUG_PRINTLN(baroData.temperature);
+    DEBUG_PRINT(F("Yukseklik : ")); DEBUG_PRINTLN(baroData.altitude);
+    DEBUG_PRINT(F("Basinc : ")); DEBUG_PRINTLN(baroData.pressure);
+    DEBUG_PRINT(F("Sicaklik : ")); DEBUG_PRINTLN(baroData.temperature);
 
     DEBUG_PRINT(F("IMU Acc X : ")); DEBUG_PRINT(imuData.acc.x);
     DEBUG_PRINT(F(" Y : ")); DEBUG_PRINT(imuData.acc.y);
@@ -501,7 +561,7 @@ void Application::kademeAyirmaBilgisayar(){
 
     rfModule->viewSettings();
 
-    uint8_t packet;
+    uint8_t packet = 0;
 
     int state = 0;
     bool isPrinted = false;
@@ -510,36 +570,39 @@ void Application::kademeAyirmaBilgisayar(){
     uint8_t mainSendPacket[3] = {0x37, 0x11, 0x52};
 
     while(true){
-        if(usbPort.available()){
+        if(usbPort.available() > 0){
             packet = usbPort.read();
 
             if(state == 0 && packet == 'k'){
                 state = 1;
                 isPrinted = false;
-            } else if(state == 1 && packet == 'o'){
+            } 
+            else if(state == 1 && packet == 'o'){
                 state = 2;
                 isPrinted = false;
-            } else if(state == 2 && (packet == 'a' || packet == 'z')){
-                state = 3;
+            } 
+            else if(state == 2 && packet == 'a'){
                 isPrinted = false;
+                state = 3;
                 if(packet == 'a'){
                     DEBUG_PRINTLN(F("Apogee Atesleme Sinyali Gonderiliyor..."));
                     rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, apogeeSendPacket, sizeof(apogeeSendPacket));
-                }
-                else if(packet == 'z'){
-                    DEBUG_PRINTLN(F("Main Atesleme Sinyali Gonderiliyor..."));
-                    rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, mainSendPacket, sizeof(mainSendPacket));
+                    delay(500);
+                    packet = 'p';
                 }
                 DEBUG_PRINT(F("Atesleme Sinyali Gönderildi!")); DEBUG_PRINTLN();
             }
-            else {
-                DEBUG_PRINT(F("Gecersiz Komut!")); DEBUG_PRINTLN();
+            else if(state == 3 && packet == 'z'){
                 isPrinted = false;
-                state = 0;
-                DEBUG_PRINTLN(F("Sifirlandi!")); DEBUG_PRINTLN();
+                if(packet == 'z'){
+                    DEBUG_PRINTLN(F("Main Atesleme Sinyali Gonderiliyor..."));
+                    rfModule->send(RF_SEND_HIGH_ADDR, RF_SEND_LOW_ADDR, CONFIG_RF_CHANNEL, mainSendPacket, sizeof(mainSendPacket));
+                    delay(500);
+                    packet = 'p';
+                }
+                DEBUG_PRINT(F("Atesleme Sinyali Gönderildi!")); DEBUG_PRINTLN();
             }
 
-            usbPort.flush();
         }
 
         if(isPrinted == false){
@@ -556,7 +619,12 @@ void Application::kademeAyirmaBilgisayar(){
                 break;
 
             case 2:
-                DEBUG_PRINTLN(F("Apogee için 'a' main için 'z' tuşuna bas!")); DEBUG_PRINTLN();
+                DEBUG_PRINTLN(F("Apogee için 'a' tuşuna bas!")); DEBUG_PRINTLN();
+                isPrinted = true;
+                break;
+
+            case 3:
+                DEBUG_PRINTLN(F("Main için 'z' tuşuna bas!")); DEBUG_PRINTLN();
                 isPrinted = true;
                 break;
             }
@@ -581,10 +649,12 @@ void Application::kademeAyirma(){
 
     pinMode(PYRO_APOGEE_PIN, OUTPUT);
     pinMode(PYRO_MAIN_PIN, OUTPUT);
+    digitalWrite(PYRO_APOGEE_PIN, LOW);
+    digitalWrite(PYRO_MAIN_PIN, LOW);
 
     while(true){
         msg = rfModule->receive();
-        if(E220_Success == msg.status){
+        if(E220_Success == msg.status && msg.size >= 3){
             if(msg.buffer[0] == apogeeSendPacket[0] && msg.buffer[1] == apogeeSendPacket[1] && msg.buffer[2] == apogeeSendPacket[2]){
                 DEBUG_PRINTLN(F("Apogee Atesleme Sinyali Alindi!"));
                 digitalWrite(PYRO_APOGEE_PIN, HIGH);
@@ -607,36 +677,75 @@ void Application::ykiRun() {
                                 CONFIG_LPS_ODR_RATE, CONFIG_LPS_LPFP, CONFIG_LPS_BDU, CONFIG_LPS_LOW_NOISE);
     imu->BNOInit();
 
-    gpsModule->begin();
+    //gpsModule->begin();
+    
+    ahrs.begin();
+    ahrs.setFusionAlgorithm(SensorFusion::EXTENDED_KALMAN);
+    ahrs.setDeclination(6.13f);
+    ahrs.setDOF(DOF::DOF_9);
 
     DebugSerial->println(F("YKI Modu Baslatildi."));
 
-    uint8_t packet[sizeof(BaroData) + sizeof(ImuData) + sizeof(GpsDataSimplified)];
-
     GpsDataSimplified gpsDataSimplified;
+    GpsDataSimplified gpsDataSimplified2;
+
+    SensorData tempData;
+    imuData_float ImuEulerData;
+
+    int durum = 0;
 
     while(true){
+        String buffer;
         altitudeManager->update();
         baroData = altitudeManager->getBaroData();
         
-        gpsModule->getData();
-        gpsData = gpsModule->getDataStruct();
-        gpsDataSimplified.latitude = gpsData.latitude;
-        gpsDataSimplified.longitude = gpsData.longitude;
-        gpsDataSimplified.altitude = gpsData.altitude;
+        //gpsModule->getData();
+        //gpsData = gpsModule->getDataStruct();
+        gpsDataSimplified.latitude = 39.819478 + ((float)(rand() % 10) / 1000000);
+        gpsDataSimplified.longitude = 32.561892 + ((float)(rand() % 10) / 1000000);
+        gpsDataSimplified.altitude = rand() % 20 + 980;
+
+        gpsDataSimplified2.latitude = 39.819478 + ((float)(rand() % 10) / 1000000);
+        gpsDataSimplified2.longitude = 32.561892 + ((float)(rand() % 10) / 1000000);
+        gpsDataSimplified2.altitude = rand() % 20 + 980;
 
         imuData.acc = imu->getAccData();
         imuData.gyro = imu->getGyroData();
         imuData.mag = imu->getMagData();
 
-        memset(packet, 0, sizeof(packet));
-        memcpy(packet, &baroData, sizeof(BaroData));
-        memcpy(packet + sizeof(BaroData), &imuData, sizeof(ImuData));
-        memcpy(packet + sizeof(BaroData) + sizeof(ImuData), &gpsDataSimplified, sizeof(GpsDataSimplified));
+        ahrs.setData(tempData);
+        ahrs.update();
 
-        usbPort.write(packet, sizeof(packet));
+        ImuEulerData.x = roundf(ahrs.angles.roll * 100.0f) / 100.0f;
+        ImuEulerData.y = roundf(ahrs.angles.pitch * 100.0f) / 100.0f;
+        ImuEulerData.z = roundf(ahrs.angles.yaw * 100.0f) / 100.0f;
 
-        delay(100);
+        durum = rand() % 4;
+
+        buffer += String(baroData.altitude) + ",";
+        buffer += String(gpsDataSimplified.altitude) + ",";
+        buffer += String(gpsDataSimplified.latitude) + ",";
+        buffer += String(gpsDataSimplified.longitude) + ",";
+        buffer += String(gpsDataSimplified2.altitude) + ",";
+        buffer += String(gpsDataSimplified2.latitude) + ",";
+        buffer += String(gpsDataSimplified2.longitude) + ",";
+        buffer += String(imuData.gyro.x) + ",";
+        buffer += String(imuData.gyro.y) + ",";
+        buffer += String(imuData.gyro.z) + ",";
+        buffer += String(imuData.acc.x) + ",";
+        buffer += String(imuData.acc.y) + ",";
+        buffer += String(imuData.acc.z) + ",";
+        buffer += String(ImuEulerData.x) + ",";
+        buffer += String(durum) + ",";
+        buffer += String(imuData.gyro.z) + ",";
+        buffer += String(0) + ",";
+        buffer += String(ImuEulerData.y) + ",";
+        buffer += String(imuData.gyro.z) + "\n";
+
+        DEBUG_PRINT(buffer);
+        usbPort.write(buffer.c_str(), buffer.length());
+
+        delay(200);
     }
 }
 
@@ -646,9 +755,11 @@ void Application::sitSutRun() {
                                 CONFIG_LPS_ODR_RATE, CONFIG_LPS_LPFP, CONFIG_LPS_BDU, CONFIG_LPS_LOW_NOISE);
     imu->BNOInit();
 
-    gpsModule->begin();
+    //gpsModule->begin();
 
-    RS232Serial->begin(115200, SERIAL_8N1);
+    DebugSerial->print(F("SysClock: ")); DebugSerial->println(HAL_RCC_GetSysClockFreq());
+
+    RS232Serial->begin(115200);
 
     DebugSerial->println(F("SIT-SUT Modu Baslatildi."));
 
@@ -681,12 +792,13 @@ void Application::sitSutRun() {
     while(true){
         if(RS232Serial->available() > 0){
             uint8_t receivedByte = RS232Serial->read();
+            DebugSerial->print(F("Data: ")); DebugSerial->println(receivedByte, HEX);
             if(receivedByte == 0xAB){
-                // nothing
+                DebugSerial->println(F("SUT Paket Header Alındı."));
             }
             else if(receivedByte == 0xAA){
                 commandGet = true;
-
+                DebugSerial->println(F("Komut Verme Alındı."));
             }
 
             if(commandGet == true){
@@ -704,18 +816,24 @@ void Application::sitSutRun() {
                 switch (commandSet[0])
                 {
                 case 0x20:
-                    if(commandSet[1] == 0x8C)
+                    if(commandSet[1] == 0x8C){
+                        DebugSerial->println(F("SIT Komutu geldi."));
                         currentState = STATE_SIT;
+                    }
                     break;
                 
                 case 0x22:
-                    if(commandSet[1] == 0x8E)
+                    if(commandSet[1] == 0x8E){
+                        DebugSerial->println(F("SUT Komutu geldi."));
                         currentState = STATE_SUT;
+                    }
                     break;
 
                 case 0x24:
-                    if(commandSet[1] == 0x90)
+                    if(commandSet[1] == 0x90){
+                        DebugSerial->println(F("Durdur Komutu geldi."));
                         currentState = SUT_SIT_IDLE;
+                    }
                     break;
                 }
             }
@@ -727,8 +845,8 @@ void Application::sitSutRun() {
             BaroSendData.altitude = roundf(baroData.altitude * 100.0f) / 100.0f;
             BaroSendData.pressure = roundf(baroData.pressure * 100.0f) / 100.0f;
             
-            gpsModule->getData();
-            gpsData = gpsModule->getDataStruct();
+            //gpsModule->getData();
+            //gpsData = gpsModule->getDataStruct();
 
             imuData.acc = imu->getAccData();
             tempData.aTimeStamp = millis();
@@ -797,6 +915,8 @@ void Application::sitSutRun() {
             memcpy(&ImuEulerData.y, &sutReceivePacket[25], sizeof(float));
             memcpy(&ImuEulerData.z, &sutReceivePacket[29], sizeof(float));
 
+            fonksiyonelPrint();
+
             int totalCount = 0;
             for(int i = 1; i < 33; i++) {
                 totalCount = sutReceivePacket[i];
@@ -853,4 +973,22 @@ void Application::resetCnt() {
     rocketState = STATE_RAMP;
     apogeeTime = 0;
     memset(altitudeCircular, 0, sizeof(altitudeCircular));
+}
+
+void Application::gpsTestRun(){
+    DEBUG_PRINTLN(F("baslama"));
+    gpsModule->begin();
+    DEBUG_PRINTLN(F("bitis"));
+
+    while(true){
+        String buffer = GPSSerial->readStringUntil('\n');
+        DEBUG_PRINTLN(buffer);
+        //DEBUG_PRINTLN("test");
+
+        gpsModule->getData();
+        gpsData = gpsModule->getDataStruct();
+
+        gpsModule->printData();
+        delay(2000);
+    }
 }
