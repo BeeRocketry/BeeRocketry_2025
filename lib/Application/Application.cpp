@@ -330,7 +330,7 @@ void Application::algoritmaRun() {
                       CONFIG_RF_TRANSFER_MODE, CONFIG_RF_TRANSFER_POWER, CONFIG_RF_WIRELESS_WAKEUP,
                       CONFIG_RF_UART_PARITY, CONFIG_RF_RSSI_AMBIENT, CONFIG_RF_LBT_ENABLE);
 
-    DebugSerial->println(F("Algortima Modu Baslatildi."));
+    DebugSerial->println(F("Algoritma Modu Baslatildi."));
 
     rfModule->viewSettings();
     
